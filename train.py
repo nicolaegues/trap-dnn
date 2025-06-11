@@ -3,7 +3,7 @@ import torch
 from torch import nn
 import numpy as np
 from simpleUnet import SimpleUNet
-from autophase import recon_model
+from autoencoder import recon_model
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt

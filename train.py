@@ -19,9 +19,6 @@ import json
 current params (epochs = 3, batchsize = 8, lr = 0.01 overfit a single square aperture)
 """
 
-
-
-
 class CustomDataset(Dataset):
     def __init__(self, X, y, transform=None):
         self.X = X
@@ -50,7 +47,7 @@ data_dir = dir + "data/one_square/"
 
 #experiment directory
 current_datetime = datetime.datetime.now().strftime("%a-%d-%b-%Y-at-%I-%M-%S%p")
-exp_dir = f"{dir}exp_{current_datetime}/"
+exp_dir = f"{dir}experiments/exp_{current_datetime}/"
 final_figs_dir = f"{exp_dir}final_figs/"
 os.makedirs(final_figs_dir, exist_ok=True)
 progression_figs_dir = f"{exp_dir}progression_figs/"

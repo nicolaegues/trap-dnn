@@ -2,48 +2,32 @@
 import torch
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
-import numpy as np
-from autoencoder import recon_model
 from sklearn.model_selection import train_test_split
-from torch.utils.data import Dataset, DataLoader
-import matplotlib.pyplot as plt
+from torch.utils.data import DataLoader
+
+import numpy as np
 import datetime
 import os
 import time
 import json
 
-# (early stopping thresh)
-# learning rate scheduler?, loss scaling for AMP?, 
+from autoencoder import recon_model
+from helper_functions import CustomDataset, plot_4_ims
 
 """
+# (early stopping thresh)
+# learning rate scheduler?, loss scaling for AMP?, 
 current params (epochs = 3, batchsize = 8, lr = 0.01 overfit a single square aperture)
 """
 
-class CustomDataset(Dataset):
-    def __init__(self, X, y, transform=None):
-        self.X = X
-        self.y = y
-        self.transform = transform
-
-    def __len__(self):
-        return len(self.X)
-
-    def __getitem__(self, idx):
-        sample_x = self.X[idx]
-        sample_y = self.y[idx]
-
-        # Apply transformation if provided
-        if self.transform:
-            sample_x = self.transform(sample_x)
-        
-        return sample_x, sample_y
-
+writer = None
+#writer = SummaryWriter() #terminal: python -m tensorboard.main --logdir=runs
+plot_progression = True
 
 dir = "C:/Users/nicol/OneDrive - University of Bristol/MSc_project-DESKTOP-M3M0RRL/maxEnt_simulation/DNN/"
 
 #data directory
 data_dir = dir + "data/one_square/"
-
 
 #experiment directory
 current_datetime = datetime.datetime.now().strftime("%a-%d-%b-%Y-at-%I-%M-%S%p")
@@ -52,10 +36,6 @@ final_figs_dir = f"{exp_dir}final_figs/"
 os.makedirs(final_figs_dir, exist_ok=True)
 progression_figs_dir = f"{exp_dir}progression_figs/"
 os.makedirs(progression_figs_dir, exist_ok=True)
-
-writer = None
-#writer = SummaryWriter()
-"""python -m tensorboard.main --logdir=runs"""
 
 train_intensities = np.load(data_dir + "intensities.npy")[:1000]
 train_intensities = torch.Tensor(train_intensities[:, np.newaxis ])
@@ -79,33 +59,6 @@ optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 criterion = nn.L1Loss()
 
 
-def sparsity_loss(amp):
-    return torch.mean(torch.abs(amp))
-
-def total_variation(x):
-    dh = torch.abs(x[:, :, 1:, :] - x[:, :, :-1, :]).mean()
-    dw = torch.abs(x[:, :, :, 1:] - x[:, :, :, :-1]).mean()
-    return dh + dw
-
-def plot_4_ims(og_diffr, pred_diffr, og_amp, pred_amp, dir):
-    fig, axes = plt.subplots(1, 4, figsize = (10, 3))
-    axes[0].imshow(og_diffr)
-    axes[0].set_title("OG Diffraction pattern")
-    axes[1].imshow(pred_diffr)
-    axes[1].set_title("Pred Diffraction pattern")
-
-    axes[2].imshow(og_amp)
-    axes[2].set_title("OG Aperture")
-    axes[3].imshow(pred_amp)
-    axes[3].set_title("Pred amplitude")
-
-    for ax in axes: 
-        ax.set_axis_off()
-
-    plt.savefig(dir)
-    plt.close()
-
-
 experiment_summary = {
     "data_dir": data_dir,
     "model": "version with nn.upsample",
@@ -121,14 +74,13 @@ experiment_summary = {
 
 metrics = dict([(f"Epoch {epoch+1}", {"training_loss": [], "validation_loss": []}) for epoch in range(epochs)])
 
-plot_progression = True
-
 train_batches_per_epoch = len(train_set)//batch_size
 no_desired_figs_per_epoch = 100
 train_plot_every_n_batches = train_batches_per_epoch // no_desired_figs_per_epoch
 
 val_batches_per_epoch = len(val_set)//batch_size
 val_plot_every_n_batches = val_batches_per_epoch // 2
+
 
 start_time = time.time()
 
@@ -201,7 +153,6 @@ for epoch in range(1, epochs + 1):
 
             if epoch == epochs and b == len(val_loader)-1: 
                 for i in range(len(diffr_batch)): 
-                    fig, axes = plt.subplots(1, 4, figsize = (10, 3))
 
                     plot_4_ims(diffr_batch[i][0], pred_diffr[i][0], aperture_batch[i][0], pred_amp[i][0], dir = f"{final_figs_dir}{i}")
 

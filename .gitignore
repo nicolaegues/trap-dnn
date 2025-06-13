@@ -1,0 +1,7 @@
+
+__pycache__/
+data/
+experiments/
+model_visualisation.ipynb
+runs/
+simpleUnet.py

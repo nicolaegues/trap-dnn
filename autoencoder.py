@@ -96,9 +96,8 @@ class recon_model(nn.Module):
     self.inc = Conv(1, nconv, stride = 1) 
     self.down1 = Down(nconv, nconv*2)
     self.down2= Down(nconv*2, nconv*4)
-    #self.down3= Down(nconv*4, nconv*8)
-    self.down5 = Conv(nconv*4, nconv*8, stride = 2)
-    self.down6 = Conv(nconv*8, nconv*8, stride = 2)
+    self.down3 = Conv(nconv*4, nconv*8, stride = 2)
+    self.down4 = Conv(nconv*8, nconv*8, stride = 2)
 
     #DECODER
     self.up1 = Up(nconv*8, nconv*4)
@@ -114,9 +113,8 @@ class recon_model(nn.Module):
 
     x = self.down1(x)
     x = self.down2(x)
-    #x = self.down3(x)
-    x = self.down5(x)
-    x = self.down6(x)
+    x = self.down3(x)
+    x = self.down4(x)
 
     x = self.up1(x)
     x = self.up2(x)
@@ -152,12 +150,9 @@ class recon_model(nn.Module):
     #complex_x = torch.complex(amp*torch.cos(ph),amp*torch.sin(ph))
 
     #Compute FT, shift and take abs
-
     y = torch.fft.fftn(amp ,dim=(-2,-1), norm = "ortho")
     y = torch.fft.fftshift(y,dim=(-2,-1)) #FFT shift will move the wrong dimensions if not specified
     y = torch.abs(y)**2
-
-
     
     # #Normalize to scale_I
     # if scale_I>0:

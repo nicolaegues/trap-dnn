@@ -94,19 +94,8 @@ for epoch in range(1, epochs + 1):
     #for diffr_batch, amp_batch in train_loader: 
     for b, (diffr_batch, aperture_batch) in enumerate(train_loader, start = 1): 
 
-        # amax = diffr_batch.amax(dim=(-2, -1), keepdim=True).clamp_min(1e-9)                         
-        # diffr_batch = diffr_batch/amax
-
         pred_diffr, pred_amp = model(diffr_batch)
-
-        # amax = pred_diffr.amax(dim=(-2, -1), keepdim=True).clamp_min(1e-9)                        
-        # pred_diffr = pred_diffr/amax
-
         loss = criterion(pred_diffr, diffr_batch)
-        #tv_loss = total_variation(pred_amp)
-        #loss = fft_loss + 0.05*tv_loss
-        #+ 1e-3 * sparsity_loss(pred_amp)
-
 
         optimizer.zero_grad()
         loss.backward()
@@ -118,6 +107,7 @@ for epoch in range(1, epochs + 1):
         # torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clipping)
         # grad_scaler.step(optimizer)
         # grad_scaler.update()
+
         if plot_progression == True: 
             if epoch == 1 and (b % train_plot_every_n_batches == 0):
                 plot_4_ims(diffr_batch.detach()[0][0], pred_diffr.detach()[0][0], aperture_batch.detach()[0][0], pred_amp.detach()[0][0], dir = f"{progression_figs_dir}train_epoch{epoch}_batch{b}")
@@ -125,7 +115,6 @@ for epoch in range(1, epochs + 1):
         train_loss.append(loss.item())
         if writer is not None: 
             writer.add_scalar("Loss/Train", loss.item(), b+train_batches_per_epoch*(epoch-1))
-        #print(f"Train loss: {loss.item()}")
 
         epoch_end_time = time.time()
         epoch_duration = epoch_end_time-start_time
@@ -143,8 +132,6 @@ for epoch in range(1, epochs + 1):
             loss = criterion(pred_diffr, diffr_batch)
 
             val_loss.append(loss.item())
-
-            #print(f"Validation loss: {loss.item()}")
 
             # if plot_progression == True: 
             #     if b % val_plot_every_n_batches == 0:
@@ -176,9 +163,6 @@ for epoch in range(1, epochs + 1):
     epoch_val_loss = np.array(val_loss).mean()
     print(f"Epoch {epoch} Mean Val loss: {epoch_val_loss.item()}")
     model.train()
-
-    #if save_checkpoint:
-        # save model state dict
 
 end_time = time.time()
 

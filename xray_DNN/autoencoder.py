@@ -150,9 +150,12 @@ class recon_model(nn.Module):
     #complex_x = torch.complex(amp*torch.cos(ph),amp*torch.sin(ph))
 
     #Compute FT, shift and take abs
+
     y = torch.fft.fftn(amp ,dim=(-2,-1), norm = "ortho")
     y = torch.fft.fftshift(y,dim=(-2,-1)) #FFT shift will move the wrong dimensions if not specified
     y = torch.abs(y)**2
+
+
     
     # #Normalize to scale_I
     # if scale_I>0:

@@ -29,10 +29,10 @@ def plot_4_ims(og_diffr, pred_diffr, og_amp, pred_amp, dir):
     axes[1].imshow(pred_diffr)
     axes[1].set_title("Pred Diffraction pattern")
 
-    axes[2].imshow(og_amp)
-    axes[2].set_title("OG Aperture")
-    axes[3].imshow(pred_amp)
-    axes[3].set_title("Pred amplitude")
+    axes[2].imshow(og_amp, cmap = "twilight")
+    axes[2].set_title("OG Phase")
+    axes[3].imshow(pred_amp, cmap = "twilight")
+    axes[3].set_title("Pred Phase")
 
     for ax in axes: 
         ax.set_axis_off()

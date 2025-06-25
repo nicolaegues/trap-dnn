@@ -11,7 +11,7 @@ import os
 import time
 import json
 
-from autoencoder import recon_model
+from acoustic_DNN.acoustic_autoencoder import recon_model
 from helper_functions import CustomDataset, plot_4_ims
 
 """
@@ -20,14 +20,13 @@ from helper_functions import CustomDataset, plot_4_ims
 current params (epochs = 3, batchsize = 8, lr = 0.01 overfit a single square aperture)
 """
 
-writer = None
-#writer = SummaryWriter() #terminal: python -m tensorboard.main --logdir=runs
-plot_progression = True
-
-dir = "C:/Users/nicol/OneDrive - University of Bristol/MSc_project-DESKTOP-M3M0RRL/maxEnt_simulation/DNN/"
-
+dir = "C:/Users/nicol/OneDrive - University of Bristol/MSc_project-DESKTOP-M3M0RRL/maxEnt_simulation/DNN/acoustic_DNN/"
 #data directory
-data_dir = dir + "data/one_square/"
+data_dir = dir + "data/random/train/"
+
+#writer = None
+writer = SummaryWriter() #terminal: python -m tensorboard.main --logdir=runs
+plot_progression = False
 
 #experiment directory
 current_datetime = datetime.datetime.now().strftime("%a-%d-%b-%Y-at-%I-%M-%S%p")
@@ -35,15 +34,18 @@ exp_dir = f"{dir}experiments/exp_{current_datetime}/"
 final_figs_dir = f"{exp_dir}final_figs/"
 os.makedirs(final_figs_dir, exist_ok=True)
 progression_figs_dir = f"{exp_dir}progression_figs/"
-os.makedirs(progression_figs_dir, exist_ok=True)
+if plot_progression:
+    os.makedirs(progression_figs_dir, exist_ok=True)
 
-train_intensities = np.load(data_dir + "intensities.npy")[:1000]
-train_intensities = torch.Tensor(train_intensities[:, np.newaxis ])
-apertures =  np.load(data_dir + "apertures.npy")[:1000] #just for visualisation
-apertures = torch.Tensor(apertures[:, np.newaxis ])
+print(f"\nExperiment directory: {exp_dir}")
+
+train_pattern = np.load(data_dir + "acoustic_traps.npy")[:1000]
+train_pattern = torch.Tensor(train_pattern[:, np.newaxis ])
+source_phases =  np.load(data_dir + "acoustic_phases.npy")[:1000] #just for visualisation
+source_phases = torch.Tensor(source_phases[:, np.newaxis ])
 
 
-dataset = CustomDataset(train_intensities, apertures)
+dataset = CustomDataset(train_pattern, source_phases)
 train_set, val_set = train_test_split(dataset, test_size=0.2)
 
 batch_size = 8
@@ -61,7 +63,7 @@ criterion = nn.L1Loss()
 
 experiment_summary = {
     "data_dir": data_dir,
-    "model": "version with nn.upsample",
+    "model": "acoustic autoencoder",
     "learning_rate": lr,
     "batch_size": batch_size,
     "epochs": epochs,
@@ -109,7 +111,7 @@ for epoch in range(1, epochs + 1):
         # grad_scaler.update()
 
         if plot_progression == True: 
-            if epoch == 1 and (b % train_plot_every_n_batches == 0):
+            if (b % train_plot_every_n_batches == 0):
                 plot_4_ims(diffr_batch.detach()[0][0], pred_diffr.detach()[0][0], aperture_batch.detach()[0][0], pred_amp.detach()[0][0], dir = f"{progression_figs_dir}train_epoch{epoch}_batch{b}")
 
         train_loss.append(loss.item())

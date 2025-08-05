@@ -8,7 +8,7 @@ Date: 30.05.2025
 import torch
 from acoustic_DNN.acoustic_autoencoder import recon_model
 import numpy as np
-from helper_functions import CustomDataset, plot_4_ims
+from utils import CustomDataset, plot_4_ims
 from torch.utils.data import DataLoader
 import os
 
@@ -20,7 +20,8 @@ import os
 root_dir = os.getcwd() + "/acoustic_DNN/"
 
 # Test data directory
-data_dir = root_dir + "/data/perfect_binary_traps/test/"
+data_dir = root_dir + "/data/binary_traps_moving_closer/"
+#data_dir = root_dir + "/data/perfect_binary_traps/test/"
 #data_dir = root_dir + "data/random/test/"
 #data_dir = root_dir + "data/twin_overfit/train/"  #then also do acoustic_vortex (single). and random test. 
 
@@ -30,11 +31,10 @@ exp = "z_IASA_exp_Tue-05-Aug-2025-at-01-50-16PM"
 #exp  = "z_OG_exp_Tue-05-Aug-2025-at-01-55-40PM"
 #exp = "z_IASA_noamp_exp_Tue-05-Aug-2025-at-03-57-38PM"
 #exp = "z_OG_noamp_exp_Tue-05-Aug-2025-at-03-58-57PM"
-exp = "exp_Tue-05-Aug-2025-at-04-15-02PM"
 
 exp_dir = f"{root_dir}experiments/{exp}/"
 
-test_figs_dir = f"{exp_dir}test_figs/"
+test_figs_dir = f"{exp_dir}test_figs_moving_closer/"
 os.makedirs(test_figs_dir, exist_ok=True)
 
 max_figs_to_test = 20

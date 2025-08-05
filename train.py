@@ -19,7 +19,7 @@ import time
 import json
 
 from acoustic_DNN.acoustic_autoencoder import recon_model
-from helper_functions import CustomDataset, trap_amplitude_loss, plot_4_ims
+from utils import CustomDataset, trap_amplitude_loss, plot_4_ims
 
 # import matplotlib.pyplot as plt
 # from torchmetrics.image import StructuralSimilarityIndexMeasure

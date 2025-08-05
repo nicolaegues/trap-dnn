@@ -1,6 +1,13 @@
+"""
+Acoustic Autoencoder Training Script
+Author: Nicola Egües
+Date: 30.05.2025
+"""
 
+#================================== Imports ==================================
 import torch
 from torch import nn
+import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
@@ -14,53 +21,119 @@ import json
 from acoustic_DNN.acoustic_autoencoder import recon_model
 from helper_functions import CustomDataset, plot_4_ims
 
+# import matplotlib.pyplot as plt
+# from torchmetrics.image import StructuralSimilarityIndexMeasure
+
+
 """
 # (early stopping thresh)
 # learning rate scheduler?, loss scaling for AMP?, 
-current params (epochs = 3, batchsize = 8, lr = 0.01 overfit a single square aperture)
 """
 
-dir = "C:/Users/nicol/OneDrive - University of Bristol/MSc_project-DESKTOP-M3M0RRL/maxEnt_simulation/DNN/acoustic_DNN/"
-#data directory
-data_dir = dir + "data/random/train/"
+root_dir = "C:/Users/nicol/OneDrive - University of Bristol/MSc_project-DESKTOP-M3M0RRL/maxEnt_simulation/DNN/acoustic_DNN/"
+#root_dir = os.getcwd() + "/acoustic_DNN/"
 
+# Data directory
+data_dir = root_dir + "/data/perfect_binary_traps/train/"
+#data_dir = root_dir + "/data/random/train/"
+
+# TensorBoard writer
+writer = SummaryWriter() # Launch with: python -m tensorboard.main --logdir=runs
 #writer = None
-writer = SummaryWriter() #terminal: python -m tensorboard.main --logdir=runs
-plot_progression = False
 
-#experiment directory
+# Flags
+plot_progression = False
+include_amp_loss = True
+
+# Training hyperparameters
+epochs = 3
+batch_size = 8
+lr = 0.001
+amp_loss_weight = 0.05 # Weight of trap amplitude loss
+
+# Experiment output folder
 current_datetime = datetime.datetime.now().strftime("%a-%d-%b-%Y-at-%I-%M-%S%p")
-exp_dir = f"{dir}experiments/exp_{current_datetime}/"
+exp_dir = f"{root_dir}experiments/exp_{current_datetime}/"
 final_figs_dir = f"{exp_dir}final_figs/"
 os.makedirs(final_figs_dir, exist_ok=True)
 progression_figs_dir = f"{exp_dir}progression_figs/"
 if plot_progression:
     os.makedirs(progression_figs_dir, exist_ok=True)
 
-print(f"\nExperiment directory: {exp_dir}")
+print("-"*100)
+print(f"Experiment directory: {exp_dir}")
+print("-"*100)
 
-train_pattern = np.load(data_dir + "acoustic_traps.npy")[:1000]
-train_pattern = torch.Tensor(train_pattern[:, np.newaxis ])
-source_phases =  np.load(data_dir + "acoustic_phases.npy")[:1000] #just for visualisation
+#================================== Load and Normalise Data ==================================
+
+#Load target field magnitudes and normalise per sample
+target_pattern = np.load(data_dir + "acoustic_traps.npy")
+max_vals = np.amax(np.abs(target_pattern), axis=(1, 2), keepdims=True)
+target_pattern = target_pattern/max_vals
+target_pattern = torch.Tensor(target_pattern[:, np.newaxis ])
+
+# Load trap coordinates (for loss computation later) and source phases (only for visualisation later)
+trap_coords = np.load(data_dir + "trap_coords.npy")
+#trap_coords = np.zeros(shape = (1000, 2, 2))
+source_phases = np.zeros(shape = (1000, 64, 64))
+#source_phases =  np.load(data_dir + "acoustic_phases.npy") 
 source_phases = torch.Tensor(source_phases[:, np.newaxis ])
 
+# Create DataLoaders
+dataset = CustomDataset(target_pattern, trap_coords, source_phases)
+train_set, val_set = train_test_split(dataset, test_size=0.2, shuffle = False)
+train_loader  = DataLoader(train_set, batch_size=batch_size, shuffle = False )
+val_loader  = DataLoader(val_set, batch_size=batch_size, shuffle = False)
 
-dataset = CustomDataset(train_pattern, source_phases)
-train_set, val_set = train_test_split(dataset, test_size=0.2)
 
-batch_size = 8
-train_loader  = DataLoader(train_set, batch_size=batch_size, shuffle = True)
-val_loader  = DataLoader(val_set, batch_size=batch_size, shuffle = True)
-
+#================================== Model, Optimiser, and Loss Function Initialiation ==================================
 model = recon_model()
-epochs = 3
-#lr = 0.005
-lr = 0.01
+
+# from torchinfo import summary
+# #look at shape of typical batches in data loaders
+# for idx, (X_, Y_) in enumerate(train_loader):
+#     print("X: ", X_.shape)
+#     print("Y: ", Y_.shape)
+#     if idx >= 0:
+#         break
+
+# #model architecture summary
+# summary(model,
+#         input_data = X_,
+#         col_names=["input_size",
+#                     "output_size",
+#                     "num_params"])
+
+
 
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-criterion = nn.L1Loss()
+#scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=2, T_mult=2)
+criterion = nn.L1Loss() # MAE
 
+def trap_amplitude_loss(pred_magn, coords):
+    """
+    Computes the MSE between predicted amplitude and ideal target (1.0) at trap coordinates.
 
+    Args:
+        pred_magn (Tensor): Predicted field magnitudes of shape (Batchsize, 1, H, W)
+        coords (Tensor): shape (Batchsize, no_traps, 2) with x,y coordinates of the traps
+
+    Returns:
+        Scalar loss 
+    """
+
+    loss = 0.0
+    no_traps = coords.shape[1]
+    
+    for i in range(batch_size):
+        for t in range(no_traps):
+
+            a = pred_magn[i][..., coords[i][t][1], coords[i][t][0]]
+            loss += F.mse_loss(a, torch.tensor(1.0))
+
+    return loss
+
+#================================== Metric Tracking ==================================
 experiment_summary = {
     "data_dir": data_dir,
     "model": "acoustic autoencoder",
@@ -74,100 +147,154 @@ experiment_summary = {
     "time_per_train_epoch": 0
 }
 
-metrics = dict([(f"Epoch {epoch+1}", {"training_loss": [], "validation_loss": []}) for epoch in range(epochs)])
+metrics = dict([(f"Epoch {epoch+1}", {"training_total_loss": [], "training_recon_loss": [], "training_amp_loss": [], "validation_total_loss": [], "validation_recon_loss": [], "validation_amp_loss": [], }) for epoch in range(epochs)])
 
+# Desired number of progression plots per epoch
+no_desired_figs_per_epoch = 25
 train_batches_per_epoch = len(train_set)//batch_size
-no_desired_figs_per_epoch = 100
 train_plot_every_n_batches = train_batches_per_epoch // no_desired_figs_per_epoch
 
 val_batches_per_epoch = len(val_set)//batch_size
 val_plot_every_n_batches = val_batches_per_epoch // 2
 
-
 start_time = time.time()
 
+#================================== Main Loop ==================================
 for epoch in range(1, epochs + 1):
-    print(f"\n Epoch {epoch}:")
-    model.train()
 
-    train_loss = []
+    print(f"\n Epoch {epoch}:")
+
+    train_total_loss = []
+    train_recon_loss = []
+    train_amp_loss = []
     train_count = 0
 
-    #for diffr_batch, amp_batch in train_loader: 
-    for b, (diffr_batch, aperture_batch) in enumerate(train_loader, start = 1): 
+    val_total_loss = []
+    val_recon_loss = []
+    val_amp_loss = []
 
-        pred_diffr, pred_amp = model(diffr_batch)
-        loss = criterion(pred_diffr, diffr_batch)
+    #====================== Training Loop ======================
 
+    for b, (magn_batch, trap_coords_batch, phase_batch) in enumerate(train_loader, start = 1): 
+
+        # Forward pass
+        pred_magn, pred_phase = model(magn_batch)
+        
+        # MAE Reconstruction Loss
+        recon_loss = criterion(pred_magn, magn_batch)
+
+        # optionally include trap-amplitude loss
+        if include_amp_loss == True: 
+            amp_loss = trap_amplitude_loss(pred_magn, trap_coords_batch)
+            loss = recon_loss + amp_loss_weight * amp_loss
+        else: 
+            loss = recon_loss
+
+        # Backpropagation 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        #scheduler.step()
 
-        # figure out what they did: 
-        # grad_scaler.scale(loss).backward()
-        # grad_scaler.unscale_(optimizer)
-        # torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clipping)
-        # grad_scaler.step(optimizer)
-        # grad_scaler.update()
-
-        if plot_progression == True: 
+        # Generate progression plots/store data every few batches
+        if plot_progression == True: #and 1 < epoch < 5: 
             if (b % train_plot_every_n_batches == 0):
-                plot_4_ims(diffr_batch.detach()[0][0], pred_diffr.detach()[0][0], aperture_batch.detach()[0][0], pred_amp.detach()[0][0], dir = f"{progression_figs_dir}train_epoch{epoch}_batch{b}")
 
-        train_loss.append(loss.item())
+                # Store the results (plot and numpy array) for the first item in the current batch
+                # ----------------------------------------------------------------------------------
+                # plot_4_ims(magn_batch.detach()[0][0], pred_magn.detach()[0][0], phase_batch.detach()[0][0], pred_phase.detach()[0][0], dir = f"{progression_figs_dir}train_epoch{epoch}_batch{b}")
+                # arr = np.array([np.array(magn_batch.detach()[0][0]), np.array(pred_magn.detach()[0][0]),np.array(phase_batch.detach()[0][0]), np.array(pred_phase.detach()[0][0])])
+                # np.save(f"{progression_figs_dir}train_epoch_{epoch}_batch{b}", arr)
+
+
+                # this is to track the progression (loss and plots) of the SAME input at each stage. 
+                # ----------------------------------------------------------------------------------
+                model.eval()
+                test = val_set[6][0][0]
+                test = test[np.newaxis, np.newaxis, :]
+                with torch.no_grad(): 
+                    pred_magn, pred_phase = model(test)
+                    temp_loss = criterion(pred_magn, test)
+                    plot_4_ims(test.detach()[0][0], pred_magn.detach()[0][0], phase_batch.detach()[0][0], pred_phase.detach()[0][0], dir = f"{progression_figs_dir}loss_{temp_loss.detach():.4f}_train_epoch{epoch}_batch{b}-jpg")
+                model.train()
+
+
+        train_total_loss.append(loss.item())
+        train_recon_loss.append(recon_loss.item())
+        train_amp_loss.append(amp_loss.item())
+
         if writer is not None: 
             writer.add_scalar("Loss/Train", loss.item(), b+train_batches_per_epoch*(epoch-1))
 
+        # Estimate epoch duration
         epoch_end_time = time.time()
         epoch_duration = epoch_end_time-start_time
         if epoch == 1:
             experiment_summary["time_per_train_epoch"] = f"{epoch_duration/60:.4f} minutes"
 
 
-    # VALIDATION
+    #====================== Validation Loop ======================
     model.eval()
-    val_loss = []
-    for b, (diffr_batch, aperture_batch) in enumerate(val_loader): 
+    for b, (magn_batch, trap_coords_batch, phase_batch) in enumerate(val_loader): 
+
         with torch.no_grad(): 
+            pred_magn, pred_phase = model(magn_batch)
 
-            pred_diffr, pred_amp = model(diffr_batch)
-            loss = criterion(pred_diffr, diffr_batch)
+            recon_loss = criterion(pred_magn, magn_batch)
+            if include_amp_loss == True: 
+                amp_loss = trap_amplitude_loss(pred_magn, trap_coords_batch)
+                loss = recon_loss + amp_loss_weight * amp_loss
+            else: 
+                loss = recon_loss
 
-            val_loss.append(loss.item())
+            # Store results (plots and arrays) of last batch of the last epoch
+            if epoch == epochs and b == len(val_loader)-1: #and b >= len(val_loader)-2:
+                for i in range(len(magn_batch)): 
 
-            # if plot_progression == True: 
-            #     if b % val_plot_every_n_batches == 0:
-            #         plot_4_ims(diffr_batch[0][0], pred_diffr[0][0], aperture_batch[0][0], pred_amp[0][0], dir = f"{progression_figs_dir}epoch{epoch}_batch{b}")
+                    plot_4_ims(magn_batch[i][0], pred_magn[i][0], phase_batch[i][0], pred_phase[i][0], dir = f"{final_figs_dir}{i}")
 
+                    arr = np.array([np.array(magn_batch.detach()[i][0]), np.array(pred_magn.detach()[i][0]), np.array(phase_batch.detach()[i][0]), np.array(pred_phase.detach()[i][0])])
+                    coords_arr = trap_coords_batch.detach()[i]
+                    np.save(f"{final_figs_dir}{i}", arr)
+                    np.save(f"{final_figs_dir}coords_{i}", coords_arr)
 
-            if epoch == epochs and b == len(val_loader)-1: 
-                for i in range(len(diffr_batch)): 
-
-                    plot_4_ims(diffr_batch[i][0], pred_diffr[i][0], aperture_batch[i][0], pred_amp[i][0], dir = f"{final_figs_dir}{i}")
-
-                    #np.save(f"{exp_dir}{i}",  np.array(pred_amp[i][0]))
-
+            val_total_loss.append(loss.item())
+            val_recon_loss.append(recon_loss.item())
+            val_amp_loss.append(amp_loss.item())
             if writer is not None: 
                 writer.add_scalar("Loss/Validation", loss.item(),  b+train_batches_per_epoch*(epoch-1))
 
-
             #scheduler.step(val_accuracy)
-            #Early stopping based on val accuracy ?
+            #Early stopping based on loss?
 
+
+    #====================== Epoch Data Collection  ======================
     torch.save(model.state_dict(),f"{exp_dir}final_model.pth")
 
-    metrics[f"Epoch {epoch}"]["training_loss"].append(train_loss)
-    metrics[f"Epoch {epoch}"]["validation_loss"].append(val_loss)
+    metrics[f"Epoch {epoch}"]["training_total_loss"].append(train_total_loss)
+    metrics[f"Epoch {epoch}"]["training_recon_loss"].append(train_recon_loss)
+    metrics[f"Epoch {epoch}"]["training_amp_loss"].append(train_amp_loss)
+    metrics[f"Epoch {epoch}"]["validation_total_loss"].append(val_total_loss)
+    metrics[f"Epoch {epoch}"]["validation_recon_loss"].append(val_recon_loss)
+    metrics[f"Epoch {epoch}"]["validation_amp_loss"].append(val_amp_loss)
 
-    epoch_train_loss = np.array(train_loss).mean()
-    print(f"Epoch {epoch} Mean Train Loss: {epoch_train_loss}")
+    epoch_train_total_loss = np.array(train_total_loss).mean()
+    epoch_train_recon_loss = np.array(train_recon_loss).mean()
+    epoch_train_amp_loss = np.array(train_amp_loss).mean()
+    print(f"Epoch {epoch} Mean Train Total Loss: {epoch_train_total_loss}")
+    print(f"Epoch {epoch} Mean Train Reconstruction Loss: {epoch_train_recon_loss}")
+    print(f"Epoch {epoch} Mean Train Trap Amplitude Loss: {epoch_train_amp_loss}")
     
-    epoch_val_loss = np.array(val_loss).mean()
-    print(f"Epoch {epoch} Mean Val loss: {epoch_val_loss.item()}")
-    model.train()
+    epoch_val_total_loss = np.array(val_total_loss).mean()
+    epoch_val_recon_loss = np.array(val_recon_loss).mean()
+    epoch_val_amp_loss = np.array(val_amp_loss).mean()
+    print(f"\nEpoch {epoch} Mean Val Total Loss: {epoch_val_total_loss.item()}")
+    print(f"Epoch {epoch} Mean Val Reconstruction Loss: {epoch_val_recon_loss}")
+    print(f"Epoch {epoch} Mean Val Trap Amplitude Loss: {epoch_val_amp_loss}")
 
+
+#================================== Save Results ==================================
 end_time = time.time()
-
 duration = end_time - start_time
 experiment_summary["total_time"] = f"{duration/60:.4f} minutes"
 
@@ -179,3 +306,5 @@ with open(f"{exp_dir}experiment_summary.json", "w") as f:
 
 if writer is not None:
     writer.close()
+
+

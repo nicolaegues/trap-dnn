@@ -137,17 +137,18 @@ def two_traps_moving_closer(no_samples):
 
     return all_coords
 
-#======================= Execution =======================
-dir = os.getcwd() 
-train_dir = dir + "/data/binary_traps_moving_closer/"
-#test_dir =  dir + "/data/perfect_binary_traps/test/"
 
-#y axis 0-->+64: top to bottom. 
-#x axis 0-->+64: left to right
-#trap_coords = [[(4, 32), (60, 8)]]
+if __name__ == "__main__":
+    dir = os.getcwd() 
+    train_dir = dir + "/data/binary_traps_moving_closer/"
+    #test_dir =  dir + "/data/perfect_binary_traps/test/"
 
-trap_coords = two_traps_moving_closer(20)
+    trap_coords = two_traps_moving_closer(20)
 
-generate_traps(no_samples=20, output_dir = train_dir, trap_coords = trap_coords)
+    #y axis 0-->+64: top to bottom. 
+    #x axis 0-->+64: left to right
+    #trap_coords = [[(4, 32), (60, 8)], [(32, 32), (48, 8)]] #2 traps in each of the two samples
+
+    generate_traps(no_samples=20, output_dir = train_dir, shape = (64, 64), trap_coords = trap_coords)
 
 

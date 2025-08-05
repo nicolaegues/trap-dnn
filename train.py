@@ -66,7 +66,7 @@ print("-"*100)
 
 #================================== Load and Normalise Data ==================================
 
-#Load target field magnitudes and normalise per sample
+#Load target field magnitudes and normalise per sample (in case they are not normalised already)
 target_pattern = np.load(data_dir + "acoustic_traps.npy")
 max_vals = np.amax(np.abs(target_pattern), axis=(1, 2), keepdims=True)
 target_pattern = target_pattern/max_vals
@@ -74,8 +74,8 @@ target_pattern = torch.Tensor(target_pattern[:, np.newaxis ])
 
 # Load trap coordinates (for loss computation later) and source phases (only for visualisation later)
 trap_coords = np.load(data_dir + "trap_coords.npy")
-#trap_coords = np.zeros(shape = (1000, 2, 2))
-source_phases = np.zeros(shape = (1000, 64, 64))
+#trap_coords = np.zeros(shape = (target_pattern.shape[0], 2, 2))
+source_phases = np.zeros(shape = (target_pattern.shape[0], target_pattern.shape[2], target_pattern.shape[3]))
 #source_phases =  np.load(data_dir + "acoustic_phases.npy") 
 source_phases = torch.Tensor(source_phases[:, np.newaxis ])
 
@@ -147,7 +147,11 @@ experiment_summary = {
     "time_per_train_epoch": 0
 }
 
-metrics = dict([(f"Epoch {epoch+1}", {"training_total_loss": [], "training_recon_loss": [], "training_amp_loss": [], "validation_total_loss": [], "validation_recon_loss": [], "validation_amp_loss": [], }) for epoch in range(epochs)])
+if include_amp_loss == True: 
+    metrics = dict([(f"Epoch {epoch+1}", {"training_total_loss": [], "training_recon_loss": [], "training_amp_loss": [], "validation_total_loss": [], "validation_recon_loss": [], "validation_amp_loss": [], }) for epoch in range(epochs)])
+else: 
+    metrics = dict([(f"Epoch {epoch+1}", {"training_total_loss": [], "validation_total_loss": [] }) for epoch in range(epochs)])
+
 
 # Desired number of progression plots per epoch
 no_desired_figs_per_epoch = 25
@@ -272,25 +276,29 @@ for epoch in range(1, epochs + 1):
     torch.save(model.state_dict(),f"{exp_dir}final_model.pth")
 
     metrics[f"Epoch {epoch}"]["training_total_loss"].append(train_total_loss)
-    metrics[f"Epoch {epoch}"]["training_recon_loss"].append(train_recon_loss)
-    metrics[f"Epoch {epoch}"]["training_amp_loss"].append(train_amp_loss)
     metrics[f"Epoch {epoch}"]["validation_total_loss"].append(val_total_loss)
-    metrics[f"Epoch {epoch}"]["validation_recon_loss"].append(val_recon_loss)
-    metrics[f"Epoch {epoch}"]["validation_amp_loss"].append(val_amp_loss)
-
     epoch_train_total_loss = np.array(train_total_loss).mean()
-    epoch_train_recon_loss = np.array(train_recon_loss).mean()
-    epoch_train_amp_loss = np.array(train_amp_loss).mean()
     print(f"Epoch {epoch} Mean Train Total Loss: {epoch_train_total_loss}")
-    print(f"Epoch {epoch} Mean Train Reconstruction Loss: {epoch_train_recon_loss}")
-    print(f"Epoch {epoch} Mean Train Trap Amplitude Loss: {epoch_train_amp_loss}")
+
+    if include_amp_loss == True:
+        metrics[f"Epoch {epoch}"]["training_recon_loss"].append(train_recon_loss)
+        metrics[f"Epoch {epoch}"]["training_amp_loss"].append(train_amp_loss)
+        metrics[f"Epoch {epoch}"]["validation_recon_loss"].append(val_recon_loss)
+        metrics[f"Epoch {epoch}"]["validation_amp_loss"].append(val_amp_loss)
+
+        epoch_train_recon_loss = np.array(train_recon_loss).mean()
+        epoch_train_amp_loss = np.array(train_amp_loss).mean()
+        print(f"Epoch {epoch} Mean Train Reconstruction Loss: {epoch_train_recon_loss}")
+        print(f"Epoch {epoch} Mean Train Trap Amplitude Loss: {epoch_train_amp_loss}")
     
     epoch_val_total_loss = np.array(val_total_loss).mean()
-    epoch_val_recon_loss = np.array(val_recon_loss).mean()
-    epoch_val_amp_loss = np.array(val_amp_loss).mean()
     print(f"\nEpoch {epoch} Mean Val Total Loss: {epoch_val_total_loss.item()}")
-    print(f"Epoch {epoch} Mean Val Reconstruction Loss: {epoch_val_recon_loss}")
-    print(f"Epoch {epoch} Mean Val Trap Amplitude Loss: {epoch_val_amp_loss}")
+
+    if include_amp_loss == True:
+        epoch_val_recon_loss = np.array(val_recon_loss).mean()
+        epoch_val_amp_loss = np.array(val_amp_loss).mean()
+        print(f"Epoch {epoch} Mean Val Reconstruction Loss: {epoch_val_recon_loss}")
+        print(f"Epoch {epoch} Mean Val Trap Amplitude Loss: {epoch_val_amp_loss}")
 
 
 #================================== Save Results ==================================

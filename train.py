@@ -19,7 +19,7 @@ import time
 import json
 
 from acoustic_DNN.acoustic_autoencoder import recon_model
-from helper_functions import CustomDataset, plot_4_ims
+from helper_functions import CustomDataset, trap_amplitude_loss, plot_4_ims
 
 # import matplotlib.pyplot as plt
 # from torchmetrics.image import StructuralSimilarityIndexMeasure
@@ -28,10 +28,15 @@ from helper_functions import CustomDataset, plot_4_ims
 """
 # (early stopping thresh)
 # learning rate scheduler?, loss scaling for AMP?, 
+
+# inlcude mean metrics at top of metrics.json
+# fix loss not same size amp loss
 """
 
-root_dir = "C:/Users/nicol/OneDrive - University of Bristol/MSc_project-DESKTOP-M3M0RRL/maxEnt_simulation/DNN/acoustic_DNN/"
-#root_dir = os.getcwd() + "/acoustic_DNN/"
+#================================== Experiment Configuration ==================================
+
+#root_dir = "C:/Users/nicol/OneDrive - University of Bristol/MSc_project-DESKTOP-M3M0RRL/maxEnt_simulation/DNN/acoustic_DNN/"
+root_dir = os.getcwd() + "/acoustic_DNN/"
 
 # Data directory
 data_dir = root_dir + "/data/perfect_binary_traps/train/"
@@ -49,7 +54,8 @@ include_amp_loss = True
 epochs = 3
 batch_size = 8
 lr = 0.001
-amp_loss_weight = 0.05 # Weight of trap amplitude loss
+#amp_loss_weight = 0.05 # Weight of trap amplitude loss
+amp_loss_weight = 0.1
 
 # Experiment output folder
 current_datetime = datetime.datetime.now().strftime("%a-%d-%b-%Y-at-%I-%M-%S%p")
@@ -110,28 +116,6 @@ optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 #scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=2, T_mult=2)
 criterion = nn.L1Loss() # MAE
 
-def trap_amplitude_loss(pred_magn, coords):
-    """
-    Computes the MSE between predicted amplitude and ideal target (1.0) at trap coordinates.
-
-    Args:
-        pred_magn (Tensor): Predicted field magnitudes of shape (Batchsize, 1, H, W)
-        coords (Tensor): shape (Batchsize, no_traps, 2) with x,y coordinates of the traps
-
-    Returns:
-        Scalar loss 
-    """
-
-    loss = 0.0
-    no_traps = coords.shape[1]
-    
-    for i in range(batch_size):
-        for t in range(no_traps):
-
-            a = pred_magn[i][..., coords[i][t][1], coords[i][t][0]]
-            loss += F.mse_loss(a, torch.tensor(1.0))
-
-    return loss
 
 #================================== Metric Tracking ==================================
 experiment_summary = {
@@ -142,7 +126,8 @@ experiment_summary = {
     "epochs": epochs,
     "train_size": len(train_set),
     "val_size": len(val_set),
-    "loss_function": "L1Loss",
+    "include amplitude loss": include_amp_loss,
+    "amplitude loss weight": amp_loss_weight,
     "total_time": 0,
     "time_per_train_epoch": 0
 }
@@ -189,7 +174,7 @@ for epoch in range(1, epochs + 1):
 
         # optionally include trap-amplitude loss
         if include_amp_loss == True: 
-            amp_loss = trap_amplitude_loss(pred_magn, trap_coords_batch)
+            amp_loss = trap_amplitude_loss(batch_size, pred_magn, trap_coords_batch)
             loss = recon_loss + amp_loss_weight * amp_loss
         else: 
             loss = recon_loss
@@ -206,8 +191,11 @@ for epoch in range(1, epochs + 1):
 
                 # Store the results (plot and numpy array) for the first item in the current batch
                 # ----------------------------------------------------------------------------------
-                # plot_4_ims(magn_batch.detach()[0][0], pred_magn.detach()[0][0], phase_batch.detach()[0][0], pred_phase.detach()[0][0], dir = f"{progression_figs_dir}train_epoch{epoch}_batch{b}")
-                # arr = np.array([np.array(magn_batch.detach()[0][0]), np.array(pred_magn.detach()[0][0]),np.array(phase_batch.detach()[0][0]), np.array(pred_phase.detach()[0][0])])
+                # plot_4_ims(magn_batch.detach()[0][0], pred_magn.detach()[0][0], phase_batch.detach()[0][0], 
+                #            pred_phase.detach()[0][0], trap_coords_batch.detach()[0][0], 
+                #            dir = f"{progression_figs_dir}train_epoch{epoch}_batch{b}")
+                # arr = np.array([np.array(magn_batch.detach()[0][0]), np.array(pred_magn.detach()[0][0]),
+                #                 np.array(phase_batch.detach()[0][0]), np.array(pred_phase.detach()[0][0])])
                 # np.save(f"{progression_figs_dir}train_epoch_{epoch}_batch{b}", arr)
 
 
@@ -219,13 +207,16 @@ for epoch in range(1, epochs + 1):
                 with torch.no_grad(): 
                     pred_magn, pred_phase = model(test)
                     temp_loss = criterion(pred_magn, test)
-                    plot_4_ims(test.detach()[0][0], pred_magn.detach()[0][0], phase_batch.detach()[0][0], pred_phase.detach()[0][0], dir = f"{progression_figs_dir}loss_{temp_loss.detach():.4f}_train_epoch{epoch}_batch{b}-jpg")
+                    plot_4_ims(test.detach()[0][0], pred_magn.detach()[0][0], phase_batch.detach()[0][0], 
+                               pred_phase.detach()[0][0], trap_coords_batch.detach()[0], 
+                               dir = f"{progression_figs_dir}loss_{temp_loss.detach():.4f}_train_epoch{epoch}_batch{b}-jpg")
                 model.train()
 
 
         train_total_loss.append(loss.item())
-        train_recon_loss.append(recon_loss.item())
-        train_amp_loss.append(amp_loss.item())
+        if include_amp_loss == True:
+            train_recon_loss.append(recon_loss.item())
+            train_amp_loss.append(amp_loss.item())
 
         if writer is not None: 
             writer.add_scalar("Loss/Train", loss.item(), b+train_batches_per_epoch*(epoch-1))
@@ -246,7 +237,7 @@ for epoch in range(1, epochs + 1):
 
             recon_loss = criterion(pred_magn, magn_batch)
             if include_amp_loss == True: 
-                amp_loss = trap_amplitude_loss(pred_magn, trap_coords_batch)
+                amp_loss = trap_amplitude_loss(batch_size, pred_magn, trap_coords_batch)
                 loss = recon_loss + amp_loss_weight * amp_loss
             else: 
                 loss = recon_loss
@@ -255,16 +246,20 @@ for epoch in range(1, epochs + 1):
             if epoch == epochs and b == len(val_loader)-1: #and b >= len(val_loader)-2:
                 for i in range(len(magn_batch)): 
 
-                    plot_4_ims(magn_batch[i][0], pred_magn[i][0], phase_batch[i][0], pred_phase[i][0], dir = f"{final_figs_dir}{i}")
+                    plot_4_ims(magn_batch.detach()[i][0], pred_magn.detach()[i][0], phase_batch.detach()[i][0], 
+                               pred_phase.detach()[i][0], trap_coords_batch.detach()[i], dir = f"{final_figs_dir}{i}")
 
-                    arr = np.array([np.array(magn_batch.detach()[i][0]), np.array(pred_magn.detach()[i][0]), np.array(phase_batch.detach()[i][0]), np.array(pred_phase.detach()[i][0])])
+                    arr = np.array([np.array(magn_batch.detach()[i][0]), np.array(pred_magn.detach()[i][0]), 
+                                    np.array(phase_batch.detach()[i][0]), np.array(pred_phase.detach()[i][0])])
+                    
                     coords_arr = trap_coords_batch.detach()[i]
                     np.save(f"{final_figs_dir}{i}", arr)
                     np.save(f"{final_figs_dir}coords_{i}", coords_arr)
 
             val_total_loss.append(loss.item())
-            val_recon_loss.append(recon_loss.item())
-            val_amp_loss.append(amp_loss.item())
+            if include_amp_loss == True:
+                val_recon_loss.append(recon_loss.item())
+                val_amp_loss.append(amp_loss.item())
             if writer is not None: 
                 writer.add_scalar("Loss/Validation", loss.item(),  b+train_batches_per_epoch*(epoch-1))
 

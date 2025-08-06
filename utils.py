@@ -44,7 +44,7 @@ def trap_amplitude_loss(batch_size, pred_magn, coords):
         for t in range(no_traps):
 
             a = pred_magn[i][..., coords[i][t][1], coords[i][t][0]]
-            loss += F.mse_loss(a, torch.tensor(1.0))
+            loss += F.mse_loss(a, torch.tensor([1.0]))
 
     return loss
 

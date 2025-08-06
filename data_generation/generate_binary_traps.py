@@ -81,16 +81,19 @@ def get_random_trap_coords(n_traps):
 
         trap_coords.append(fp)
     
-    return trap_coords
+    return [trap_coords]
 
 
-def plot(target): 
+def plot(target, coords): 
     fig, ax = plt.subplots(figsize = (10, 6))
     pos1 = ax.imshow(target)
+    ax.plot(coords[0][0], coords[0][1], "ro", markersize = 2)
+    ax.plot(coords[1][0], coords[1][1], "ro", markersize = 2)
 
     ax.set_axis_off()
     fig.colorbar(pos1, ax = ax)
     plt.show()
+    pass
     
 
 def generate_traps(no_samples, output_dir, shape=(64, 64), n_traps=2, trap_coords = None):
@@ -116,14 +119,14 @@ def generate_traps(no_samples, output_dir, shape=(64, 64), n_traps=2, trap_coord
         #target = make_gaussian_trap_target(shape, trap_coords[i])
         target = make_binary_trap_target(shape, trap_coords[i])
 
-        #plot(target)
+        #plot(target, trap_coords[i])
 
         traps[i] = target
         coords.append(trap_coords[i])
 
 
-    np.save(os.path.join(output_dir, "acoustic_traps.npy"), traps)
-    np.save(os.path.join(output_dir, "trap_coords.npy"), np.array(coords))
+    # np.save(os.path.join(output_dir, "acoustic_traps.npy"), traps)
+    # np.save(os.path.join(output_dir, "trap_coords.npy"), np.array(coords))
 
 
 def two_traps_moving_closer(no_samples):
@@ -149,12 +152,12 @@ if __name__ == "__main__":
     train_dir = dir + "/data/binary_traps_moving_closer/"
     #test_dir =  dir + "/data/perfect_binary_traps/test/"
 
-    trap_coords = two_traps_moving_closer(20)
+    #trap_coords = two_traps_moving_closer(20)
 
     #y axis 0-->+64: top to bottom. 
     #x axis 0-->+64: left to right
     #trap_coords = [[(4, 32), (60, 8)], [(32, 32), (48, 8)]] #2 traps in each of the two samples
 
-    generate_traps(no_samples=20, output_dir = train_dir, shape = (64, 64), trap_coords = trap_coords)
+    generate_traps(no_samples=20, output_dir = train_dir, shape = (64, 64), trap_coords = None)
 
 

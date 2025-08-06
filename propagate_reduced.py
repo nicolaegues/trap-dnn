@@ -4,7 +4,7 @@ import os
 import re
 from utils import plot_4_ims
 import cv2
-from acoustic_DNN.generate_superposed_traps import ASM
+from data_generation.generate_superposed_traps import ASM
 
 #================================== Constants ==================================
 
@@ -32,9 +32,9 @@ dx = Lx/shape[0]
 #exp = "KEEP_exp_Thu-03-Jul-2025-at-03-53-57PM"
 exp = "z_IASA_exp_Tue-05-Aug-2025-at-01-50-16PM"
 
-dir = os.getcwd() + "/maxEnt_simulation/DNN/acoustic_DNN/"
-#dir = os.getcwd() + "/acoustic_DNN/"
-exp_dir = f"{dir}experiments/{exp}/"
+#dir = os.getcwd() + "/maxEnt_simulation/DNN/"
+dir = os.getcwd()
+exp_dir = f"{dir}/experiments/{exp}/"
 final_figs_dir = f"{exp_dir}final_figs/"
 test_figs_dir = f"{exp_dir}test_figs/"
 #select the folder in which to store the reduced-size 

@@ -36,7 +36,7 @@ import os
 import time
 import json
 
-from acoustic_DNN.acoustic_autoencoder import recon_model
+from acoustic_autoencoder import recon_model
 from utils import CustomDataset, trap_amplitude_loss, plot_4_ims
 
 # import matplotlib.pyplot as plt
@@ -44,8 +44,8 @@ from utils import CustomDataset, trap_amplitude_loss, plot_4_ims
 
 #================================== Experiment Configuration ==================================
 
-#root_dir = "C:/Users/nicol/OneDrive - University of Bristol/MSc_project-DESKTOP-M3M0RRL/maxEnt_simulation/DNN/acoustic_DNN/"
-root_dir = os.getcwd() + "/acoustic_DNN/"
+#root_dir = "C:/Users/nicol/OneDrive - University of Bristol/MSc_project-DESKTOP-M3M0RRL/maxEnt_simulation/DNN/"
+root_dir = os.getcwd()
 
 # Data directory
 data_dir = root_dir + "/data/perfect_binary_traps/train/"
@@ -68,7 +68,7 @@ amp_loss_weight = 0.1
 
 # Experiment output folder
 current_datetime = datetime.datetime.now().strftime("%a-%d-%b-%Y-at-%I-%M-%S%p")
-exp_dir = f"{root_dir}experiments/exp_{current_datetime}/"
+exp_dir = f"{root_dir}/experiments/exp_{current_datetime}/"
 final_figs_dir = f"{exp_dir}final_figs/"
 os.makedirs(final_figs_dir, exist_ok=True)
 progression_figs_dir = f"{exp_dir}progression_figs/"

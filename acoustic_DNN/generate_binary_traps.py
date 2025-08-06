@@ -3,45 +3,51 @@ import matplotlib.pyplot as plt
 import os
 
 
-def make_binary_trap_target(shape, trap_coords, radius_pixels=2.5):
+def make_binary_trap_target(shape, trap_coords, radius_pixels=2.5, weights = None):
     """
     Creates a binary target map with circular trap regions set to 1.
     Args:
         shape (tuple): Shape of the 2D output array (height, width).
         trap_coords (list of tuples): List of the (x, y) trap centers.
         radius_pixels (float): Radius of circular trap area in pixels.
+        weights (list of floats): Optional weights for each of the traps - if None, then they are all set to 1
 
     Returns:
         ndarray: Binary target image.
     """
+    if weights == None: 
+        weights = np.ones(shape = len(trap_coords))
+
     masks = []
     target = np.zeros(shape, dtype=np.float32)
     X, Y = np.meshgrid(np.arange(shape[1]), np.arange(shape[0]))
-
-    for (cx, cy) in trap_coords:
+    for weight, (cx, cy) in zip(weights, trap_coords):
         mask = (X - cx)**2 + (Y - cy)**2 <= radius_pixels**2
-        target[mask] = 1
+        target[mask] = 1*weight
         masks.append(mask)
 
     return target
 
-def make_gaussian_trap_target(shape, trap_coords, sigma_px=2.5):
+def make_gaussian_trap_target(shape, trap_coords, sigma_px=2.5, weights = None):
     """
     Creates a target map with Gaussian-shaped trap intensities.
     Args:
         shape (tuple): Shape of the 2D output array (height, width).
         trap_coords (list of tuples): List of the (x, y) trap centers.
         sigma_px (float): Standard deviation of the Gaussian in pixels.
+        weights (list of floats): Optional weights for each of the traps - if None, then they are all set to 1
 
     Returns:
         ndarray: Gaussian target image.
     """
 
+    if weights == None: 
+        weights = np.ones(shape = len(trap_coords))
     target = np.zeros(shape, dtype=np.float32)
     X, Y = np.meshgrid(np.arange(shape[1]), np.arange(shape[0]))
-    for (cx, cy) in trap_coords:
+    for weight, (cx, cy) in zip(weights, trap_coords):
         gauss = np.exp(-((X - cx)**2 + (Y - cy)**2) / (2 * sigma_px**2))
-        target += gauss
+        target += weight*gauss
 
     return target
 

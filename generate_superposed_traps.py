@@ -249,7 +249,6 @@ def phaseFieldDiscrete_from_coords(X, Y, dx, trap_coords):
     field = np.zeros_like(X, dtype=complex)
 
     for i, j in trap_coords: 
-
         # Convert pixel to real trap coordinates
         x_fp = (i + 0.5) * dx - Lx / 2
         y_fp = (j + 0.5) * dx - Lx / 2
@@ -317,11 +316,11 @@ def generate_traps(no_samples, output_dir, shape = (64, 64), trap_coords = None)
         trap_array[i] = P_z_magn
         all_coords.append(coords)
         #print(coords)
-        #plot(P0_phase, P_z_magn, coords)
+        plot(P0_phase, P_z_magn, coords)
 
-    np.save(os.path.join(output_dir, "acoustic_phases.npy"), phases_array)
-    np.save(os.path.join(output_dir, "acoustic_traps.npy"), trap_array)
-    np.save(os.path.join(output_dir, "trap_coords.npy"), np.array(coords))
+    # np.save(os.path.join(output_dir, "acoustic_phases.npy"), phases_array)
+    # np.save(os.path.join(output_dir, "acoustic_traps.npy"), trap_array)
+    # np.save(os.path.join(output_dir, "trap_coords.npy"), np.array(coords))
 
 if __name__ == "__main__":
     dir = os.getcwd() 
@@ -329,5 +328,5 @@ if __name__ == "__main__":
     test_dir =  dir + "/data/og_traps_moving/"
 
     trap_coords = two_traps_moving_closer(20)
-    generate_traps(20, output_dir = test_dir, trap_coords=trap_coords)
+    generate_traps(2, output_dir = test_dir, shape = (64, 64), trap_coords=trap_coords)
 

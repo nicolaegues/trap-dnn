@@ -4,6 +4,24 @@ Author: Nicola Egües
 Date: 30.05.2025
 """
 
+"""
+# (early stopping thresh)
+# learning rate scheduler?, loss scaling for AMP?, 
+
+# inlcude mean metrics at top of metrics.json
+# fix loss not same size amp loss
+
+# run on supercomp. 
+# add signal to background loss term
+# compare both methods in terms of static and moving results (ie how similar the phasemaps are), reduced propagation, and generalisation to multiple traps
+# fix other flaws.
+
+# update autoencoder, propagate_reduced.py, (model_visualisation)
+# example data folder (w couple arrs)
+# example experiment folder
+
+"""
+
 #================================== Imports ==================================
 import torch
 from torch import nn
@@ -23,15 +41,6 @@ from utils import CustomDataset, trap_amplitude_loss, plot_4_ims
 
 # import matplotlib.pyplot as plt
 # from torchmetrics.image import StructuralSimilarityIndexMeasure
-
-
-"""
-# (early stopping thresh)
-# learning rate scheduler?, loss scaling for AMP?, 
-
-# inlcude mean metrics at top of metrics.json
-# fix loss not same size amp loss
-"""
 
 #================================== Experiment Configuration ==================================
 

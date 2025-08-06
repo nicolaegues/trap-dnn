@@ -20,8 +20,8 @@ import os
 root_dir = os.getcwd() + "/acoustic_DNN/"
 
 # Test data directory
-data_dir = root_dir + "/data/binary_traps_moving_closer/"
-#data_dir = root_dir + "/data/perfect_binary_traps/test/"
+#data_dir = root_dir + "/data/binary_traps_moving_closer/"
+data_dir = root_dir + "/data/perfect_binary_traps/test/"
 #data_dir = root_dir + "data/random/test/"
 #data_dir = root_dir + "data/twin_overfit/train/"  #then also do acoustic_vortex (single). and random test. 
 
@@ -34,7 +34,7 @@ exp = "z_IASA_exp_Tue-05-Aug-2025-at-01-50-16PM"
 
 exp_dir = f"{root_dir}experiments/{exp}/"
 
-test_figs_dir = f"{exp_dir}test_figs_moving_closer/"
+test_figs_dir = f"{exp_dir}test_figs/"
 os.makedirs(test_figs_dir, exist_ok=True)
 
 max_figs_to_test = 20
@@ -80,4 +80,7 @@ for i, (magn_batch, trap_coords_batch, phase_batch) in enumerate(test_loader):
         arr = np.array([np.array(magn_batch.detach()[0][0]), np.array(pred_magn.detach()[0][0]), 
                         np.array(phase_batch.detach()[0][0]), np.array(pred_amp.detach()[0][0])])
         np.save(f"{test_figs_dir}{i}", arr)
+
+        coords_arr = trap_coords_batch.detach()[0]
+        np.save(f"{test_figs_dir}coords_{i}", coords_arr)
 

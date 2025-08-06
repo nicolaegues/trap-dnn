@@ -81,7 +81,7 @@ def get_random_trap_coords(n_traps):
 
         trap_coords.append(fp)
     
-    return [trap_coords]
+    return trap_coords
 
 
 def plot(target, coords): 
@@ -114,19 +114,21 @@ def generate_traps(no_samples, output_dir, shape=(64, 64), n_traps=2, trap_coord
         
         # randomly place n_traps if no coordinates are given
         if trap_coords == None: 
-            trap_coords = get_random_trap_coords(n_traps)
+            sample_coords = get_random_trap_coords(n_traps)
+        else: 
+            sample_coords = trap_coords[i]
 
         #target = make_gaussian_trap_target(shape, trap_coords[i])
-        target = make_binary_trap_target(shape, trap_coords[i])
+        target = make_binary_trap_target(shape, sample_coords)
 
         #plot(target, trap_coords[i])
 
         traps[i] = target
-        coords.append(trap_coords[i])
+        coords.append(sample_coords)
 
 
-    # np.save(os.path.join(output_dir, "acoustic_traps.npy"), traps)
-    # np.save(os.path.join(output_dir, "trap_coords.npy"), np.array(coords))
+    np.save(os.path.join(output_dir, "acoustic_traps.npy"), traps)
+    np.save(os.path.join(output_dir, "trap_coords.npy"), np.array(coords))
 
 
 def two_traps_moving_closer(no_samples):

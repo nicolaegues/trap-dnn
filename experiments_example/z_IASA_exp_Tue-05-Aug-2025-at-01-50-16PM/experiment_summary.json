@@ -1,0 +1,13 @@
+{
+    "data_dir": "/mnt/c/Users/nicol/OneDrive - University of Bristol/MSc_project-DESKTOP-M3M0RRL/maxEnt_simulation/DNN/acoustic_DNN//data/perfect_binary_traps/train/",
+    "model": "acoustic autoencoder",
+    "learning_rate": 0.001,
+    "batch_size": 8,
+    "epochs": 3,
+    "train_size": 800,
+    "val_size": 200,
+    "include amplitude loss": true,
+    "amplitude loss weight": 0.05,
+    "total_time": "4.0530 minutes",
+    "time_per_train_epoch": "1.4536 minutes"
+}
